@@ -1,0 +1,2 @@
+# AI_proj_eden_crawler
+以本地代理为前提的scrapy项目
