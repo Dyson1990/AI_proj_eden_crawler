@@ -7,6 +7,10 @@ class HttpxDownloadHandler:
     def __init__(self, settings):
         pass
 
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler.settings)
+
     def download_request(self, request, spider):
         return threads.deferToThread(self._fetch, request)
 
