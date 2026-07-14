@@ -1,3 +1,4 @@
+import asyncio
 import socket
 import ssl
 from urllib.parse import urlparse
@@ -6,7 +7,6 @@ import h2.connection
 import h2.config
 import h2.events
 from scrapy.http import HtmlResponse
-from twisted.internet import threads
 
 
 def _tunnel_proxy(sock, host, port, proxy_url):
@@ -21,6 +21,8 @@ def _tunnel_proxy(sock, host, port, proxy_url):
 
 
 class H2DownloadHandler:
+    lazy = False
+
     def __init__(self, settings):
         self._timeout = settings.getfloat("DOWNLOAD_TIMEOUT", 30)
 
@@ -28,8 +30,8 @@ class H2DownloadHandler:
     def from_crawler(cls, crawler):
         return cls(crawler.settings)
 
-    def download_request(self, request, spider):
-        return threads.deferToThread(self._fetch, request)
+    async def download_request(self, request):
+        return await asyncio.to_thread(self._fetch, request)
 
     def _fetch(self, request):
         parsed = urlparse(request.url)
@@ -106,5 +108,5 @@ class H2DownloadHandler:
                     )
             sock.sendall(conn.data_to_send())
 
-    def close(self):
+    async def close(self):
         pass

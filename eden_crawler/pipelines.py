@@ -7,7 +7,14 @@ import scrapy
 
 
 class SQLitePipeline:
-    def open_spider(self, spider):
+    @classmethod
+    def from_crawler(cls, crawler):
+        o = cls()
+        o._crawler = crawler
+        return o
+
+    def open_spider(self):
+        spider = self._crawler.spider
         self.conn = sqlite3.connect("data.db")
         self.cursor = self.conn.cursor()
         spider_file = spider.__class__.__module__.split(".")[-1]
@@ -21,7 +28,7 @@ class SQLitePipeline:
                 self._fields = list(obj.fields.keys())
                 break
 
-    def close_spider(self, spider):
+    def close_spider(self):
         self.conn.close()
 
     def _ensure_table(self, fields):
@@ -53,7 +60,7 @@ class SQLitePipeline:
                     )
         self.conn.commit()
 
-    def process_item(self, item, spider):
+    def process_item(self, item):
         fields = self._fields
         values = [datetime.now().isoformat()]
         values += [

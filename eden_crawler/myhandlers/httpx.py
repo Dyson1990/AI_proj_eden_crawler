@@ -1,9 +1,12 @@
+import asyncio
+
 import httpx
 from scrapy.http import HtmlResponse
-from twisted.internet import threads
 
 
 class HttpxDownloadHandler:
+    lazy = False
+
     def __init__(self, settings):
         pass
 
@@ -11,8 +14,8 @@ class HttpxDownloadHandler:
     def from_crawler(cls, crawler):
         return cls(crawler.settings)
 
-    def download_request(self, request, spider):
-        return threads.deferToThread(self._fetch, request)
+    async def download_request(self, request):
+        return await asyncio.to_thread(self._fetch, request)
 
     def _fetch(self, request):
         proxy = request.meta.get("proxy")
@@ -33,5 +36,5 @@ class HttpxDownloadHandler:
             encoding=resp.encoding or "utf-8",
         )
 
-    def close(self):
+    async def close(self):
         pass

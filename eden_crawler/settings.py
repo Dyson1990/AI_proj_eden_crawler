@@ -4,6 +4,8 @@ NEWSPIDER_MODULE = "eden_crawler.spiders"
 ROBOTSTXT_OBEY = False
 
 DOWNLOADER_MIDDLEWARES = {
+    "scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware": None,
+    "eden_crawler.middlewares.SafeHttpCompressionMiddleware": 810,
     "eden_crawler.middlewares.ProxyMiddleware": 100,
 }
 

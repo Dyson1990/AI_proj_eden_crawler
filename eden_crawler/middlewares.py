@@ -1,4 +1,33 @@
+import sys
+
+from scrapy.downloadermiddlewares.httpcompression import HttpCompressionMiddleware
+
+try:
+    import zstd
+except ImportError:
+    zstd = None
+
+
+class SafeHttpCompressionMiddleware(HttpCompressionMiddleware):
+    """Catch zstd decompress errors — some servers send broken zstd bodies."""
+
+    def _decode(self, body, encoding, max_size):
+        try:
+            return super()._decode(body, encoding, max_size)
+        except Exception:
+            if zstd is not None and isinstance(sys.exc_info()[1], zstd.ZstdError):
+                return body
+            raise
+
+
 class ProxyMiddleware:
-    def process_request(self, request, spider):
-        if spider.settings.getbool("PROXY_ENABLED"):
-            request.meta["proxy"] = spider.settings.get("PROXY_URL")
+    def __init__(self, settings):
+        self.settings = settings
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler.settings)
+
+    def process_request(self, request):
+        if self.settings.getbool("PROXY_ENABLED"):
+            request.meta["proxy"] = self.settings.get("PROXY_URL")
