@@ -9,15 +9,16 @@ import h2.events
 from scrapy.http import HtmlResponse
 
 
-def _tunnel_proxy(sock, host, port, proxy_url):
-    """CONNECT tunnel through HTTP proxy."""
+def _tunnel_proxy(host, port, proxy_url, timeout):
+    """CONNECT tunnel through HTTP proxy. Returns a socket connected to target via proxy."""
     parsed = urlparse(proxy_url)
-    sock.connect((parsed.hostname, parsed.port or 8080))
+    sock = socket.create_connection((parsed.hostname, parsed.port or 8080), timeout=timeout)
     connect = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n"
     sock.sendall(connect.encode())
     resp = sock.recv(4096)
     if b"200" not in resp.split(b"\r\n")[0]:
         raise ConnectionError(f"Proxy CONNECT failed: {resp.decode()}")
+    return sock
 
 
 class H2DownloadHandler:
@@ -41,12 +42,14 @@ class H2DownloadHandler:
         if parsed.query:
             path += "?" + parsed.query
 
-        sock = socket.create_connection((host, port), timeout=self._timeout)
+        proxy = request.meta.get("proxy")
+
+        if parsed.scheme == "https" and proxy:
+            sock = _tunnel_proxy(host, port, proxy, self._timeout)
+        else:
+            sock = socket.create_connection((host, port), timeout=self._timeout)
 
         if parsed.scheme == "https":
-            proxy = request.meta.get("proxy")
-            if proxy:
-                _tunnel_proxy(sock, host, port, proxy)
             ctx = ssl.create_default_context()
             ctx.set_alpn_protocols(["h2"])
             sock = ctx.wrap_socket(sock, server_hostname=host)

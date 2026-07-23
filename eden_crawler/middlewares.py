@@ -15,7 +15,7 @@ class SafeHttpCompressionMiddleware(HttpCompressionMiddleware):
         try:
             return super()._decode(body, encoding, max_size)
         except Exception:
-            if zstd is not None and isinstance(sys.exc_info()[1], zstd.ZstdError):
+            if zstd is not None and hasattr(zstd, 'ZstdError') and isinstance(sys.exc_info()[1], zstd.ZstdError):
                 return body
             raise
 
