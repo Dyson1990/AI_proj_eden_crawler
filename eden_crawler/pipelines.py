@@ -1,5 +1,12 @@
+import hashlib
+import os
 import sqlite3
 from datetime import datetime
+from urllib.parse import urlparse
+
+import httpx
+
+from eden_crawler.items import Asset
 
 
 class SQLitePipeline:
@@ -15,6 +22,7 @@ class SQLitePipeline:
         self.cursor = self.conn.cursor()
         spider_file = spider.__class__.__module__.split(".")[-1]
         self.table_name = f"spider_{spider_file}"
+        self._asset_dir = spider.settings.get("ASSET_DIR", "downloads")
 
     def close_spider(self):
         self.conn.close()
@@ -38,7 +46,47 @@ class SQLitePipeline:
                 )
         self.conn.commit()
 
+    def _guess_ext(self, content_type, url):
+        """Infer file extension from Content-Type or URL path."""
+        ct = (content_type or "").lower()
+        for prefix, ext in [
+            ("image/jpeg", ".jpg"), ("image/jpg", ".jpg"),
+            ("image/png", ".png"), ("image/gif", ".gif"),
+            ("image/webp", ".webp"), ("video/mp4", ".mp4"),
+            ("video/webm", ".webm"),
+        ]:
+            if prefix in ct:
+                return ext
+        _, ext = os.path.splitext(urlparse(url).path)
+        return ext or ""
+
+    def _process_assets(self, item):
+        """Download Asset values and replace in-place."""
+        for key in list(item.keys()):
+            val = item.get(key)
+            if not isinstance(val, Asset):
+                continue
+            try:
+                resp = httpx.get(val.url, follow_redirects=True)
+                resp.raise_for_status()
+                if val.type == "file":
+                    dir_path = os.path.join(self._asset_dir, self.table_name)
+                    os.makedirs(dir_path, exist_ok=True)
+                    ext = self._guess_ext(resp.headers.get("content-type"), val.url)
+                    fname = hashlib.md5(val.url.encode()).hexdigest() + ext
+                    filepath = os.path.join(dir_path, fname)
+                    if not os.path.exists(filepath):
+                        with open(filepath, "wb") as f:
+                            f.write(resp.content)
+                    item[key] = filepath
+                else:
+                    item[key] = resp.content
+            except Exception:
+                item[key] = None
+
     def process_item(self, item):
+        self._process_assets(item)
+
         fields = list(item.fields.keys())
         self._ensure_table(fields)
         self._sync_columns(fields)

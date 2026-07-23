@@ -35,3 +35,4 @@ elif HTTP_BACKEND is None:
     }
 
 LOG_LEVEL = "INFO"
+ASSET_DIR = "downloads"
