@@ -1,19 +1,21 @@
 import json
 import scrapy
-# from eden_crawler.items import IpCheckItem
+from eden_crawler.items import DynamicItem
 
 
 class IpSpider(scrapy.Spider):
     name = "ip"
-    start_urls = ["http://ip-api.com/json"]
+    # start_urls = ["http://ip-api.com/json"]
+
+    async def start(self):
+        yield scrapy.Request("http://ip-api.com/json", callback=self.parse)
 
     def parse(self, response):
         data = json.loads(response.text)
-        print(f"#################################### IP:{data.get('country')}【{data.get('query')}】 ####################################")
-        # yield IpCheckItem(
-        #     ip=data.get('query'),
-        #     country=data.get('country'),
-        #     region=data.get('regionName'),
-        #     city=data.get('city'),
-        #     org=data.get('org'),
-        # )
+        item = DynamicItem()
+        item["ip"] = data.get("query")
+        item["country"] = data.get("country")
+        item["region"] = data.get("regionName")
+        item["city"] = data.get("city")
+        item["org"] = data.get("org")
+        yield item
