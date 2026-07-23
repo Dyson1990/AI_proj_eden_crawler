@@ -90,8 +90,8 @@ class H2DownloadHandler:
                 break
             for event in conn.receive_data(data):
                 if isinstance(event, h2.events.ResponseReceived):
-                    resp_status = event.status
                     resp_headers = {h.decode(): v.decode() for h, v in event.headers}
+                    resp_status = int(resp_headers.get(":status", 0))
                 elif isinstance(event, h2.events.DataReceived):
                     resp_data.extend(event.data)
                     conn.acknowledge_received_data(

@@ -1,4 +1,4 @@
-import sys
+import gzip
 
 from scrapy.downloadermiddlewares.httpcompression import HttpCompressionMiddleware
 
@@ -9,12 +9,15 @@ except ImportError:
 
 
 class SafeHttpCompressionMiddleware(HttpCompressionMiddleware):
-    """Catch zstd decompress errors — some servers send broken zstd bodies."""
+    """Catch decompress errors — some servers send broken/mismatched bodies."""
 
     def _decode(self, body, encoding, max_size):
         try:
             return super()._decode(body, encoding, max_size)
         except Exception:
+            # Raised when body doesn't match declared encoding (e.g. HTML with gzip header)
+            if isinstance(sys.exc_info()[1], gzip.BadGzipFile):
+                return body
             if zstd is not None and hasattr(zstd, 'ZstdError') and isinstance(sys.exc_info()[1], zstd.ZstdError):
                 return body
             raise
